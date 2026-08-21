@@ -1,0 +1,11 @@
+{
+  "subnets": [
+    {
+      "ipv6_prefix": "::/0",
+      "default_response_rate": 0.1,
+      "EUI_response_rate": 0.1,
+      "lower_response_rate": 0.1,
+      "higher_response_rate": 0.1
+    }
+  ]
+}

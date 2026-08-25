@@ -7,10 +7,6 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <bitset>
-#include <memory>
-#include <string>
-#include <iostream>
 #include <nlohmann/json.hpp>
 #include <fstream>
 
@@ -32,11 +28,9 @@ public:
 
     double getResponseRateForAddress(const std::string &addressStr) const;
 
-    std::string matchFromString(const std::string &addressStr) const;
-
     void printTrie(int level = 0) const;
 
-    void setRates(const ResponseRates &rates) { responseRates = rates; }
+    void setRates(const ResponseRates& rates) { responseRates = rates; }
 
 private:
     std::bitset<128> prefix;
@@ -48,14 +42,12 @@ private:
     std::unique_ptr<Node> right;
 
     Node *insert(const std::bitset<128> &newPrefix, size_t newLength);
-
-    Node *find(const std::bitset<128> &address, size_t depth = 0);
 };
 
-Node::Node(const std::bitset<128> &prefix, size_t length, bool isReal)
-        : prefix(prefix), prefixLength(length), isRealPrefix(isReal) {}
+Node::Node(const std::bitset<128>& prefix, size_t length, bool isReal)
+    : prefix(prefix), prefixLength(length), isRealPrefix(isReal) {}
 
-size_t commonPrefixLength(const std::bitset<128> &a, const std::bitset<128> &b) {
+size_t commonPrefixLength(const std::bitset<128>& a, const std::bitset<128>& b) {
     size_t common = 0;
     while (common < 128 && a[127 - common] == b[127 - common]) {
         ++common;
@@ -63,7 +55,7 @@ size_t commonPrefixLength(const std::bitset<128> &a, const std::bitset<128> &b) 
     return common;
 }
 
-std::pair<std::bitset<128>, size_t> parseIPv6(const std::string &input) {
+std::pair<std::bitset<128>, size_t> parseIPv6(const std::string& input) {
     size_t slashPos = input.find('/');
     if (slashPos == std::string::npos)
         throw std::invalid_argument("Invalid IPv6 prefix: missing '/'");
@@ -90,7 +82,7 @@ std::pair<std::bitset<128>, size_t> parseIPv6(const std::string &input) {
     return {bits, prefixLength};
 }
 
-std::string bitsetToIPv6(const std::bitset<128> &bits) {
+std::string bitsetToIPv6(const std::bitset<128>& bits) {
     uint8_t raw[16] = {0};
 
     for (int byte = 0; byte < 16; ++byte) {
@@ -109,7 +101,7 @@ std::string bitsetToIPv6(const std::bitset<128> &bits) {
 }
 
 
-Node *Node::insert(const std::bitset<128> &newPrefix, size_t newLength) {
+Node* Node::insert(const std::bitset<128>& newPrefix, size_t newLength) {
     size_t common = 0;
     while (common < 128 &&
            common < std::min(prefixLength, newLength) &&
@@ -124,7 +116,7 @@ Node *Node::insert(const std::bitset<128> &newPrefix, size_t newLength) {
 
     if (common == prefixLength && newLength > prefixLength) {
         bool bit = newPrefix[127 - prefixLength];
-        std::unique_ptr<Node> &child = bit ? right : left;
+        std::unique_ptr<Node>& child = bit ? right : left;
 
         if (!child) {
             child = std::make_unique<Node>(newPrefix, newLength, true);
@@ -146,7 +138,7 @@ Node *Node::insert(const std::bitset<128> &newPrefix, size_t newLength) {
     existing->left = std::move(left);
     existing->right = std::move(right);
     existing->responseRates = this->responseRates;
-    this->responseRates = ResponseRates();
+    this->responseRates = ResponseRates();   
 
     left = nullptr;
     right = nullptr;
@@ -158,42 +150,20 @@ Node *Node::insert(const std::bitset<128> &newPrefix, size_t newLength) {
         left = std::move(existing);
 
     bool newBit = newPrefix[127 - common];
-    std::unique_ptr<Node> &branch = newBit ? right : left;
+    std::unique_ptr<Node>& branch = newBit ? right : left;
 
     if (!branch) {
         branch = std::make_unique<Node>(newPrefix, newLength, true);
         return branch.get();
     } else {
-        Node *inserted = branch->insert(newPrefix, newLength);
+        Node* inserted = branch->insert(newPrefix, newLength);
         if (!inserted->isRealPrefix) {
             inserted->isRealPrefix = true;  // Ensure it's marked
         }
         return inserted;
-    }
-
 }
 
-Node *Node::find(const std::bitset<128> &address, size_t depth) {
-    Node *current = this;
-    while (current) {
-        bool matches = true;
-        for (size_t i = 0; i < current->prefixLength; ++i) {
-            if (address[127 - i] != current->prefix[127 - i]) {
-                matches = false;
-                break;
-            }
-        }
-
-        if (!matches) return nullptr;
-        if (current->isRealPrefix && current->prefixLength + depth == 128)
-            return current;
-
-        bool bit = address[127 - current->prefixLength];
-        current = bit ? current->right.get() : current->left.get();
-    }
-    return nullptr;
 }
-
 
 void Node::printTrie(int level) const {
     for (int i = 0; i < level; ++i)
@@ -223,7 +193,7 @@ void Node::printTrie(int level) const {
 }
 
 
-void Node::insertPrefixesFromJSON(const std::string &filePath) {
+void Node::insertPrefixesFromJSON(const std::string& filePath) {
     std::ifstream in(filePath);
     if (!in.is_open()) {
         throw std::runtime_error("Failed to open JSON file: " + filePath);
@@ -236,64 +206,66 @@ void Node::insertPrefixesFromJSON(const std::string &filePath) {
         throw std::runtime_error("JSON does not contain a valid 'subnets' array");
     }
 
-    for (const auto &subnet: j["subnets"]) {
+    for (const auto& subnet : j["subnets"]) {
         if (!subnet.contains("ipv6_prefix")) continue;
 
         std::string prefixStr = subnet["ipv6_prefix"];
         try {
             auto [bits, len] = parseIPv6(prefixStr);
-            Node *node = insert(bits, len);
+            Node* node = insert(bits, len);
             ResponseRates rates;
             rates.default_rate = subnet.value("default_response_rate", 0.0);
-            rates.eui_rate = subnet.value("EUI_response_rate", 0.0);
-            rates.lower_rate = subnet.value("lower_response_rate", 0.0);
-            rates.higher_rate = subnet.value("higher_response_rate", 0.0);
+            rates.eui_rate     = subnet.value("EUI_response_rate", 0.0);
+            rates.lower_rate   = subnet.value("lower_response_rate", 0.0);
+            rates.higher_rate  = subnet.value("higher_response_rate", 0.0);
             node->setRates(rates);
             //std::cout << "Inserted prefix: " << prefixStr << "\n";
-        } catch (const std::exception &e) {
+        } catch (const std::exception& e) {
             std::cerr << "Failed to insert '" << prefixStr << "': " << e.what() << "\n";
         }
     }
 }
 
-const bool isEUI64(const std::bitset<128> &address) {
+const bool isEUI64(const std::bitset<128>& address) {
     auto addr = address;
     // ignore last 24 bits so ff:fe is at the end of the address.
     addr >>= 24;
     // Bits 64 to 71 and 72 to 79 correspond to bytes 8 and 9 
-    std::bitset<128> bit_mask("1111111111111111");
-
+    std::bitset<128> bit_mask ("1111111111111111");
+ 
     addr ^= bit_mask;
-
+ 
     addr &= bit_mask;
     return (addr == 1);
 };
 
 
-const bool isLowerByte(const std::bitset<128> &address, const std::bitset<128> &prefix, int prefix_len) {
+const bool isLowerByte(const std::bitset<128>& address, const std::bitset<128>& prefix, int prefix_len) {
     if (prefix_len <= LAST_RELEVANT_BITS) return false;
 
     std::bitset<128> diff = address ^ prefix;
 
     // Only the lowest LAST_RELEVANT_BITS may differ
-    for (int i = LAST_RELEVANT_BITS + 1; i < 128; ++i) {
+    for (int i = LAST_RELEVANT_BITS; i < 128; ++i) {
         if (diff[i]) return false;
     }
     return diff.any(); // at least one low bit must differ
 }
 
-const bool isHigherByte(const std::bitset<128> &address, const std::bitset<128> &prefix, int prefix_len) {
+const bool isHigherByte(const std::bitset<128>& address, const std::bitset<128>& prefix, int prefix_len) {
     if (prefix_len <= LAST_RELEVANT_BITS) return false;
 
     std::bitset<128> diff = address ^ prefix;
 
     diff >>= LAST_RELEVANT_BITS;
-    auto mask = std::bitset<128>((1ULL << (prefix_len - LAST_RELEVANT_BITS)) - 1);
+    std::bitset<128> mask;
+    mask.set();
+    mask >>= (128 - (prefix_len - LAST_RELEVANT_BITS));
     return (diff == mask);
 }
 
 
-double Node::getResponseRateForAddress(const std::string &addressStr) const {
+double Node::getResponseRateForAddress(const std::string& addressStr) const {
     std::bitset<128> address;
     uint8_t raw[16];
 
@@ -301,28 +273,21 @@ double Node::getResponseRateForAddress(const std::string &addressStr) const {
      * Pack the 16 big-endian bytes from inet_pton into a bitset<128> where
      * bit 127 is the address's MSB and bit 0 its LSB.
     **/
+    if (inet_pton(AF_INET6, addressStr.c_str(), raw) != 1)
+        return 0.0;
 
-    uint64_t hi, lo;
-    std::memcpy(&hi, raw, 8);
-    std::memcpy(&lo, raw + 8, 8);
-    hi = __builtin_bswap64(hi);
-    lo = __builtin_bswap64(lo);
+    for (int byte = 0; byte < 16; ++byte) {
+        for (int bit = 0; bit < 8; ++bit) {
+            address[127 - (byte * 8 + bit)] = (raw[byte] >> (7 - bit)) & 1;
+        }
+    }
 
-    address = std::bitset<128>(hi);
-    address <<= 64;
-    address |= std::bitset<128>(lo);
+    const Node* best = nullptr;
+    const Node* current = this;
 
-    const Node *best = nullptr;
-    const Node *current = this;
-    /**
-     * Since we iterate in a trie, we can skip all bits checked for the last prefix.
-     * For a full depth trie this leads to a improvement of n(n-1):2.
-     */
-    uint64_t lastPrefixLength = 0;
     while (current) {
         bool matches = true;
-        // skip all bits already checked.
-        for (size_t i = lastPrefixLength; i < current->prefixLength; ++i) {
+        for (size_t i = 0; i < current->prefixLength; ++i) {
             if (address[127 - i] != current->prefix[127 - i]) {
                 matches = false;
                 break;
@@ -336,7 +301,7 @@ double Node::getResponseRateForAddress(const std::string &addressStr) const {
         }
 
         if (current->prefixLength == 128) break;
-        lastPrefixLength = current->prefixLength;
+
         bool bit = address[127 - current->prefixLength];
         current = bit ? current->right.get() : current->left.get();
     }
@@ -344,14 +309,14 @@ double Node::getResponseRateForAddress(const std::string &addressStr) const {
     if (!best) {
         //std::cout << "No prefix match found for " << addressStr << "\n";
         return 0.0;
-    }
+    }   
 
     // Print the matched node's prefix and length
     //std::cout << "Matched node: " << bitsetToIPv6(best->prefix) << "/" << best->prefixLength
     //        << " for address: " << addressStr << "\n";
 
 
-    const auto &rates = best->responseRates;
+    const auto& rates = best->responseRates;
 
     if (isEUI64(address)) {
         return rates.eui_rate;

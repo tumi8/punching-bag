@@ -1,9 +1,14 @@
 # Punching Bag
 
 ## Overview
-Punching Bag is an IPv6 ICMP echo responder designed for network testing and simulation scenarios.  
+
+Punching Bag is an IPv6 ICMP echo responder designed for network testing and simulation scenarios. 
 It listens for ICMPv6 Echo Requests (`ping`) on a specified network interface and responds with ICMPv6 Echo Replies according to configurable prefix-based response rates.  
 The tool uses `libpcap` for packet capture, `libnet` for packet crafting, and a trie-based IPv6 prefix table (loaded from a JSON configuration) to determine probabilistic reply behavior.
+
+The tool was created as part of our publication ["Punching Bag: A Tool for Testing IPv6 Scans and Target Generation Algorithms"](https://dl.acm.org/doi/10.1145/3777912.3839826), presented at the [ACM Internet Measurement Conference 2026](https://conferences.sigcomm.org/imc/2026).
+If you use our tool, please cite our publication as shown [below](#citation).
+The code was written by Christian Junginger with minor changes made by Lion Steger.
 
 ---
 
@@ -118,3 +123,24 @@ icmp6 and ip6[40] == 128
 ```
 This ensures only ICMPv6 Echo Requests are captured.
 
+## Citation
+
+```
+@inproceedings{steger2026punching,
+  author = {Steger, Lion and Junginger, Christian and Carle, Georg and Zirngibl, Johannes},
+  title = {{Punching Bag: A Tool for Testing IPv6 Scans and Target Generation Algorithms}},
+  year = {2026},
+  isbn = {9798400723278},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  url = {https://doi.org/10.1145/3777912.3839826},
+  doi = {10.1145/3777912.3839826},
+  booktitle = {Proceedings of the 2026 ACM Internet Measurement Conference},
+  pages = {219-227},
+  numpages = {9},
+  keywords = {IPv6, target generation algorithms},
+  location = {Karlsruhe Institute of Technology, Karlsruhe, Germany},
+  series = {IMC '26},
+}
+
+```
